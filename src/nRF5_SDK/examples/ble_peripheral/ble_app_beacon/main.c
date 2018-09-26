@@ -51,6 +51,7 @@
 #include <stdint.h>
 #include "nordic_common.h"
 #include "bsp.h"
+#include "nrf_gpio.h"
 #include "nrf_soc.h"
 #include "nrf_sdh.h"
 #include "nrf_sdh_ble.h"
@@ -61,6 +62,7 @@
 #include "nrf_log.h"
 #include "nrf_log_ctrl.h"
 #include "nrf_log_default_backends.h"
+#include "nrf_drv_twi.h"
 
 
 #define APP_BLE_CONN_CFG_TAG            1                                  /**< A tag identifying the SoftDevice BLE configuration. */
@@ -85,6 +87,11 @@
 #define MAJ_VAL_OFFSET_IN_BEACON_INFO   18                                 /**< Position of the MSB of the Major Value in m_beacon_info array. */
 #define UICR_ADDRESS                    0x10001080                         /**< Address of the UICR register used by this example. The major and minor versions to be encoded into the advertising data will be picked up from this location. */
 #endif
+
+#define SENSOR_ADDR          (0x40U >> 0)
+
+APP_TIMER_DEF(m_timer_id);
+static const nrf_drv_twi_t m_twi = NRF_DRV_TWI_INSTANCE(0);
 
 static ble_gap_adv_params_t m_adv_params;                                  /**< Parameters to be passed to the stack when starting advertising. */
 static uint8_t              m_adv_handle = BLE_GAP_ADV_SET_HANDLE_NOT_SET; /**< Advertising handle used to identify an advertising set. */
@@ -254,11 +261,54 @@ static void leds_init(void)
     APP_ERROR_CHECK(err_code);
 }
 
+static volatile bool m_xfer_done = false;
+static struct {
+    uint16_t temp;
+    uint16_t humidity;
+} m_sample;
+//static uint8_t m_sample[4];
+
+static void read_sensor_data()
+{
+    m_xfer_done = false;
+
+    uint8_t regs[] = {0x0f, 0x01};
+
+    ret_code_t err_code = nrf_drv_twi_tx(&m_twi, SENSOR_ADDR, regs, 2, false);
+    APP_ERROR_CHECK(err_code);
+    while (m_xfer_done == false);
+
+
+    m_xfer_done = false;
+
+    uint8_t reg = 0x0;
+
+    err_code = nrf_drv_twi_tx(&m_twi, SENSOR_ADDR, &reg, 1, true);
+    APP_ERROR_CHECK(err_code);
+    while (m_xfer_done == false);
+
+    /* Read 1 byte from the specified address - skip 3 bits dedicated for fractional part of temperature. */
+    err_code = nrf_drv_twi_rx(&m_twi, SENSOR_ADDR, (uint8_t*) &m_sample, sizeof(m_sample));
+    APP_ERROR_CHECK(err_code);
+}
+
+
+static void scan_timeout_event(void * p_context)
+{
+    NRF_LOG_INFO("timer");
+    nrf_gpio_pin_toggle(5);
+    read_sensor_data();
+}
 
 /**@brief Function for initializing timers. */
 static void timers_init(void)
 {
     ret_code_t err_code = app_timer_init();
+    APP_ERROR_CHECK(err_code);
+
+    err_code = app_timer_create(&m_timer_id,
+                                APP_TIMER_MODE_REPEATED,
+                                scan_timeout_event);
     APP_ERROR_CHECK(err_code);
 }
 
@@ -272,6 +322,42 @@ static void power_management_init(void)
     APP_ERROR_CHECK(err_code);
 }
 
+void twi_handler(nrf_drv_twi_evt_t const * p_event, void * p_context)
+{
+    switch (p_event->type)
+    {
+        case NRF_DRV_TWI_EVT_DONE:
+            if (p_event->xfer_desc.type == NRF_DRV_TWI_XFER_RX)
+            {
+                int temp = m_sample.temp * 165 * 100 / UINT16_MAX - 4000;
+                int humidity = m_sample.humidity * 100 / UINT16_MAX;
+                NRF_LOG_INFO("Temperature: %d (%x), Humidity %d (%x)", 
+                    temp, m_sample.temp, humidity, m_sample.humidity);
+            }
+            m_xfer_done = true;
+            break;
+        default:
+            break;
+    }
+}
+
+void twi_init (void)
+{
+    ret_code_t err_code;
+
+    const nrf_drv_twi_config_t twi_config = {
+       .scl                = 9,
+       .sda                = 6,
+       .frequency          = NRF_DRV_TWI_FREQ_100K,
+       .interrupt_priority = APP_IRQ_PRIORITY_HIGH,
+       .clear_bus_init     = false
+    };
+
+    err_code = nrf_drv_twi_init(&m_twi, &twi_config, twi_handler, NULL);
+    APP_ERROR_CHECK(err_code);
+
+    nrf_drv_twi_enable(&m_twi);
+}
 
 /**@brief Function for handling the idle state (main loop).
  *
@@ -291,10 +377,12 @@ static void idle_state_handle(void)
  */
 int main(void)
 {
+    nrf_gpio_cfg_output(5);
     // Initialize.
     log_init();
     timers_init();
     leds_init();
+    twi_init();
     power_management_init();
     ble_stack_init();
     advertising_init();
@@ -303,6 +391,7 @@ int main(void)
     NRF_LOG_INFO("Beacon example started.");
     advertising_start();
 
+    app_timer_start(m_timer_id, APP_TIMER_TICKS(1000), NULL);
     // Enter main loop.
     for (;; )
     {
