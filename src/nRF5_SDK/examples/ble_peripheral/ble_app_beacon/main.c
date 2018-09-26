@@ -270,13 +270,14 @@ static struct {
 
 static void read_sensor_data()
 {
-    m_xfer_done = false;
+    ret_code_t err_code;
+    // m_xfer_done = false;
 
-    uint8_t regs[] = {0x0f, 0x01};
+    // uint8_t regs[] = {0x0f, 0x01};
 
-    ret_code_t err_code = nrf_drv_twi_tx(&m_twi, SENSOR_ADDR, regs, 2, false);
-    APP_ERROR_CHECK(err_code);
-    while (m_xfer_done == false);
+    // err_code = nrf_drv_twi_tx(&m_twi, SENSOR_ADDR, regs, 2, false);
+    // APP_ERROR_CHECK(err_code);
+    // while (m_xfer_done == false);
 
 
     m_xfer_done = false;
@@ -397,6 +398,26 @@ int main(void)
     // Start execution.
     NRF_LOG_INFO("Beacon example started.");
     advertising_start();
+
+    m_xfer_done = false;
+
+    // 1Hz
+    uint8_t regs[] = {0x0e, 0x50};
+
+    ret_code_t err_code;
+    err_code = nrf_drv_twi_tx(&m_twi, SENSOR_ADDR, regs, 2, false);
+    APP_ERROR_CHECK(err_code);
+    while (m_xfer_done == false);
+
+    m_xfer_done = false;
+
+    // start measurement
+    regs[0] = 0x0f;
+    regs[1] = 0x01;
+
+    err_code = nrf_drv_twi_tx(&m_twi, SENSOR_ADDR, regs, 2, false);
+    APP_ERROR_CHECK(err_code);
+    while (m_xfer_done == false);
 
     app_timer_start(m_timer_id, APP_TIMER_TICKS(1000), NULL);
     // Enter main loop.
