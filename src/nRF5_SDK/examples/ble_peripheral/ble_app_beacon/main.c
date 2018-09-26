@@ -290,6 +290,20 @@ static void read_sensor_data()
     /* Read 1 byte from the specified address - skip 3 bits dedicated for fractional part of temperature. */
     err_code = nrf_drv_twi_rx(&m_twi, SENSOR_ADDR, (uint8_t*) &m_sample, sizeof(m_sample));
     APP_ERROR_CHECK(err_code);
+    while (m_xfer_done == false);
+
+    int temp = m_sample.temp * 165 * 100 / UINT16_MAX - 4000;
+    int humidity = m_sample.humidity * 100 / UINT16_MAX;
+    NRF_LOG_INFO("Temperature: %d (%x), Humidity %d (%x)", 
+        temp, m_sample.temp, humidity, m_sample.humidity);
+    m_beacon_info[18] = m_sample.temp >> 8;
+    m_beacon_info[19] = m_sample.temp & 0xff;
+    m_beacon_info[20] = m_sample.humidity >> 8;
+    m_beacon_info[21] = m_sample.humidity & 0xff;
+
+    sd_ble_gap_adv_stop(m_adv_handle);
+    advertising_init();
+    advertising_start();
 }
 
 
@@ -327,13 +341,6 @@ void twi_handler(nrf_drv_twi_evt_t const * p_event, void * p_context)
     switch (p_event->type)
     {
         case NRF_DRV_TWI_EVT_DONE:
-            if (p_event->xfer_desc.type == NRF_DRV_TWI_XFER_RX)
-            {
-                int temp = m_sample.temp * 165 * 100 / UINT16_MAX - 4000;
-                int humidity = m_sample.humidity * 100 / UINT16_MAX;
-                NRF_LOG_INFO("Temperature: %d (%x), Humidity %d (%x)", 
-                    temp, m_sample.temp, humidity, m_sample.humidity);
-            }
             m_xfer_done = true;
             break;
         default:
