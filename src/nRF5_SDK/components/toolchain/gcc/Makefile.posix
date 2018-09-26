@@ -4,3 +4,6 @@ GNU_PREFIX ?= arm-none-eabi
 
 %.flash: %.hex
 	@echo "reset halt\nprogram ${PWD}/$^\nreset\nexit\n" | nc localhost 4444
+
+reset:
+	@echo "reset\nexit\n" | nc localhost 4444
