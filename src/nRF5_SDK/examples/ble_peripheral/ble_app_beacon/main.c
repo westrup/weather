@@ -63,7 +63,7 @@
 #include "nrf_log_ctrl.h"
 #include "nrf_log_default_backends.h"
 #include "nrf_drv_twi.h"
-
+#include "nrf_delay.h"
 
 #define APP_BLE_CONN_CFG_TAG            1                                  /**< A tag identifying the SoftDevice BLE configuration. */
 
@@ -91,6 +91,7 @@
 #define SENSOR_ADDR          (0x40U >> 0)
 
 APP_TIMER_DEF(m_timer_id);
+APP_TIMER_DEF(m_timer_read_id);
 static const nrf_drv_twi_t m_twi = NRF_DRV_TWI_INSTANCE(0);
 
 static ble_gap_adv_params_t m_adv_params;                                  /**< Parameters to be passed to the stack when starting advertising. */
@@ -266,41 +267,32 @@ static struct {
     uint16_t temp;
     uint16_t humidity;
 } m_sample;
-//static uint8_t m_sample[4];
 
-static void read_sensor_data()
+static void read_event(void * p_context)
 {
+    nrf_gpio_pin_toggle(5);
     ret_code_t err_code;
-    // m_xfer_done = false;
-
-    // uint8_t regs[] = {0x0f, 0x01};
-
-    // err_code = nrf_drv_twi_tx(&m_twi, SENSOR_ADDR, regs, 2, false);
-    // APP_ERROR_CHECK(err_code);
-    // while (m_xfer_done == false);
-
-
-    m_xfer_done = false;
 
     uint8_t reg = 0x0;
 
+    m_xfer_done = false;
     err_code = nrf_drv_twi_tx(&m_twi, SENSOR_ADDR, &reg, 1, true);
     APP_ERROR_CHECK(err_code);
     while (m_xfer_done == false);
 
-    /* Read 1 byte from the specified address - skip 3 bits dedicated for fractional part of temperature. */
+    m_xfer_done = false;
     err_code = nrf_drv_twi_rx(&m_twi, SENSOR_ADDR, (uint8_t*) &m_sample, sizeof(m_sample));
     APP_ERROR_CHECK(err_code);
     while (m_xfer_done == false);
 
-    int temp = m_sample.temp * 165 * 100 / UINT16_MAX - 4000;
-    int humidity = m_sample.humidity * 100 / UINT16_MAX;
-    NRF_LOG_INFO("Temperature: %d (%x), Humidity %d (%x)", 
+    int16_t temp = m_sample.temp * 165 * 100 / UINT16_MAX - 4000;
+    int16_t humidity = m_sample.humidity * 100 / UINT16_MAX;
+    NRF_LOG_INFO("Temperature: %d (%x), Humidity %d (%x)",
         temp, m_sample.temp, humidity, m_sample.humidity);
-    m_beacon_info[18] = m_sample.temp >> 8;
-    m_beacon_info[19] = m_sample.temp & 0xff;
-    m_beacon_info[20] = m_sample.humidity >> 8;
-    m_beacon_info[21] = m_sample.humidity & 0xff;
+    m_beacon_info[18] = temp >> 8;
+    m_beacon_info[19] = temp & 0xff;
+    m_beacon_info[20] = humidity >> 8;
+    m_beacon_info[21] = humidity & 0xff;
 
     sd_ble_gap_adv_stop(m_adv_handle);
     advertising_init();
@@ -308,11 +300,18 @@ static void read_sensor_data()
 }
 
 
-static void scan_timeout_event(void * p_context)
+static void start_event(void * p_context)
 {
-    NRF_LOG_INFO("timer");
     nrf_gpio_pin_toggle(5);
-    read_sensor_data();
+    uint8_t regs[] = {0x0f, 0x01};
+
+    m_xfer_done = false;
+    uint32_t err_code = nrf_drv_twi_tx(&m_twi, SENSOR_ADDR, regs, 2, false);
+    APP_ERROR_CHECK(err_code);
+    while (m_xfer_done == false);
+
+    // give sensor time to measure (~700us needed)
+    app_timer_start(m_timer_read_id, APP_TIMER_TICKS(1), NULL);
 }
 
 /**@brief Function for initializing timers. */
@@ -323,7 +322,11 @@ static void timers_init(void)
 
     err_code = app_timer_create(&m_timer_id,
                                 APP_TIMER_MODE_REPEATED,
-                                scan_timeout_event);
+                                start_event);
+    APP_ERROR_CHECK(err_code);
+    err_code = app_timer_create(&m_timer_read_id,
+                                APP_TIMER_MODE_SINGLE_SHOT,
+                                read_event);
     APP_ERROR_CHECK(err_code);
 }
 
@@ -332,8 +335,7 @@ static void timers_init(void)
  */
 static void power_management_init(void)
 {
-    ret_code_t err_code;
-    err_code = nrf_pwr_mgmt_init();
+    ret_code_t err_code = nrf_pwr_mgmt_init();
     APP_ERROR_CHECK(err_code);
 }
 
@@ -351,8 +353,6 @@ void twi_handler(nrf_drv_twi_evt_t const * p_event, void * p_context)
 
 void twi_init (void)
 {
-    ret_code_t err_code;
-
     const nrf_drv_twi_config_t twi_config = {
        .scl                = 9,
        .sda                = 6,
@@ -361,7 +361,7 @@ void twi_init (void)
        .clear_bus_init     = false
     };
 
-    err_code = nrf_drv_twi_init(&m_twi, &twi_config, twi_handler, NULL);
+    ret_code_t err_code = nrf_drv_twi_init(&m_twi, &twi_config, twi_handler, NULL);
     APP_ERROR_CHECK(err_code);
 
     nrf_drv_twi_enable(&m_twi);
@@ -399,28 +399,17 @@ int main(void)
     NRF_LOG_INFO("Beacon example started.");
     advertising_start();
 
-    m_xfer_done = false;
 
-    // 1Hz
-    uint8_t regs[] = {0x0e, 0x50};
-
-    ret_code_t err_code;
-    err_code = nrf_drv_twi_tx(&m_twi, SENSOR_ADDR, regs, 2, false);
-    APP_ERROR_CHECK(err_code);
-    while (m_xfer_done == false);
+    // reset
+    uint8_t regs[] = {0x0e, 0x80};
 
     m_xfer_done = false;
-
-    // start measurement
-    regs[0] = 0x0f;
-    regs[1] = 0x01;
-
-    err_code = nrf_drv_twi_tx(&m_twi, SENSOR_ADDR, regs, 2, false);
+    ret_code_t err_code = nrf_drv_twi_tx(&m_twi, SENSOR_ADDR, regs, 2, false);
     APP_ERROR_CHECK(err_code);
     while (m_xfer_done == false);
 
     app_timer_start(m_timer_id, APP_TIMER_TICKS(1000), NULL);
-    // Enter main loop.
+
     for (;; )
     {
         idle_state_handle();
