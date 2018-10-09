@@ -1,0 +1,6 @@
+{
+    "files.associations": {
+        "nrf_drv_twi.h": "c",
+        "app_error.h": "c"
+    }
+}

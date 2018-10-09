@@ -1,0 +1,37 @@
+{
+    "configurations": [
+        {
+            "name": "Linux",
+            "includePath": [
+                "${workspaceFolder}/nRF5_SDK/examples/ble_peripheral/ble_app_beacon/pca10040e/s112/config",
+                "${workspaceFolder}/nRF5_SDK/components/libraries/util",
+                "${workspaceFolder}/nRF5_SDK/components/libraries/bsp",
+                "${workspaceFolder}/nRF5_SDK/components/boards",
+                "${workspaceFolder}/nRF5_SDK/modules/nrfx/hal",
+                "${workspaceFolder}/nRF5_SDK/modules/nrfx",
+                "${workspaceFolder}/nRF5_SDK/integration/nrfx",
+                "${workspaceFolder}/nRF5_SDK/modules/nrfx/mdk",
+                "${workspaceFolder}/nRF5_SDK/components/softdevice/s112/headers",
+                "${workspaceFolder}/nRF5_SDK/components/libraries/button",
+                "${workspaceFolder}/nRF5_SDK/components/softdevice/common",
+                "${workspaceFolder}/nRF5_SDK/components/libraries/experimental_section_vars",
+                "${workspaceFolder}/nRF5_SDK/components/ble/common",
+                "${workspaceFolder}/nRF5_SDK/components/libraries/timer",
+                "${workspaceFolder}/nRF5_SDK/components/libraries/pwr_mgmt",
+                "${workspaceFolder}/nRF5_SDK/components/libraries/log",
+                "${workspaceFolder}/nRF5_SDK/components/libraries/strerror",
+                "${workspaceFolder}/nRF5_SDK/components/libraries/log/src",
+                "${workspaceFolder}/nRF5_SDK/components/libraries/memobj",
+                "${workspaceFolder}/nRF5_SDK/components/libraries/balloc",
+                "${workspaceFolder}/nRF5_SDK/integration/nrfx/legacy",
+                "${workspaceFolder}/nRF5_SDK/components/libraries/delay"
+            ],
+            "defines": [],
+            "compilerPath": "/usr/bin/arm-none-eabi-gcc",
+            "cStandard": "c11",
+            "cppStandard": "c++17",
+            "intelliSenseMode": "clang-x64"
+        }
+    ],
+    "version": 4
+}
