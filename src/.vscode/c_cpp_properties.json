@@ -24,9 +24,15 @@
                 "${workspaceFolder}/nRF5_SDK/components/libraries/memobj",
                 "${workspaceFolder}/nRF5_SDK/components/libraries/balloc",
                 "${workspaceFolder}/nRF5_SDK/integration/nrfx/legacy",
-                "${workspaceFolder}/nRF5_SDK/components/libraries/delay"
+                "${workspaceFolder}/nRF5_SDK/components/libraries/delay",
+                "${workspaceFolder}/nRF5_SDK/external/fprintf"
             ],
-            "defines": [],
+            "defines": [
+                "BOARD_PCA10040",
+                "NRF52810_XXAA",
+                "S112",
+                "SOFTDEVICE_PRESENT"
+            ],
             "compilerPath": "/usr/bin/arm-none-eabi-gcc",
             "cStandard": "c11",
             "cppStandard": "c++17",

@@ -144,6 +144,8 @@ static void read_event(void * p_context) {
     m_beacon_info[20] = humidity >> 8;
     m_beacon_info[21] = humidity & 0xff;
 
+    // nrf_pwr_mgmt_shutdown(NRF_PWR_MGMT_SHUTDOWN_GOTO_SYSOFF);
+
     advertising_init();
     advertising_start();
 }
@@ -214,6 +216,8 @@ int main(void) {
 
     for (;; ) {
         if (NRF_LOG_PROCESS() == false)
+            NRF_UARTE0->ENABLE = UARTE_ENABLE_ENABLE_Disabled;
             nrf_pwr_mgmt_run();
+            NRF_UARTE0->ENABLE = UARTE_ENABLE_ENABLE_Enabled;
     }
 }

@@ -1,13 +1,13 @@
 EESchema Schematic File Version 4
 LIBS:weather-cache
-EELAYER 26 0
+EELAYER 29 0
 EELAYER END
 $Descr A4 11693 8268
 encoding utf-8
 Sheet 1 1
 Title ""
-Date "2018-09-07"
-Rev "1.0"
+Date "2019-03-29"
+Rev "1.1"
 Comp ""
 Comment1 ""
 Comment2 ""
@@ -26,7 +26,7 @@ F 3 "http://infocenter.nordicsemi.com/pdf/nRF52810_PS_v1.1.pdf" H 2650 4050 50  
 	1    0    0    -1  
 $EndComp
 $Comp
-L Device:Crystal_GND24_Small Y1
+L weather-rescue:Crystal_GND24_Small-Device Y1
 U 1 1 5B7EBD1C
 P 1650 3850
 F 0 "Y1" V 1600 3600 50  0000 L CNN
@@ -463,17 +463,6 @@ Connection ~ 6650 5550
 Wire Wire Line
 	6650 5550 6850 5550
 $Comp
-L Anders_ICs:HDC2080 U2
-U 1 1 5B8027FD
-P 5850 5600
-F 0 "U2" H 5700 5900 50  0000 R CNN
-F 1 "HDC2080" H 6150 5900 50  0000 R CNN
-F 2 "Package_SON:Texas_PWSON-N6" H 5800 5350 50  0001 L CNN
-F 3 "http://www.ti.com/lit/ds/symlink/hdc1080.pdf" H 5450 5850 50  0001 C CNN
-	1    5850 5600
-	1    0    0    -1  
-$EndComp
-$Comp
 L Device:Crystal_Small Y2
 U 1 1 5B840CE7
 P 4550 3100
@@ -702,4 +691,15 @@ Text Label 6850 5750 0    50   ~ 0
 DRDY
 Wire Wire Line
 	6850 5750 6200 5750
+$Comp
+L Anders_ICs:HDC2080 U2
+U 1 1 5BBE39A8
+P 5850 5600
+F 0 "U2" H 5850 6017 50  0000 C CNN
+F 1 "HDC2080" H 5850 5926 50  0000 C CNN
+F 2 "Package_SON:Texas_PWSON-N6" H 5850 5300 50  0001 L CNN
+F 3 "http://www.ti.com/lit/ds/symlink/hdc2080.pdf" H 5500 5900 50  0001 C CNN
+	1    5850 5600
+	1    0    0    -1  
+$EndComp
 $EndSCHEMATC
